@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spanish Practice Prompt Builder</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>🇪🇸 Spanish Practice Prompt Builder</h1>
+  <span class="sub">check sets → pick options → copy prompt → paste into Claude</span>
+  <span class="spacer"></span>
+  <button class="secondary" id="exportBtn">Export data</button>
+  <button class="secondary" id="importBtn">Import data</button>
+  <input type="file" id="importFile" accept=".json" hidden>
+</header>
+
+<div class="layout">
+  <div><!-- LEFT: sets -->
+    <div class="panel">
+      <h2>My Sets</h2>
+      <div class="set-controls">
+        <label><input type="checkbox" id="allSets"> All sets</label>
+        <button class="secondary" id="expandAll">Expand all</button>
+        <button class="secondary" id="collapseAll">Collapse all</button>
+      </div>
+      <div id="setsContainer"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Add a New Set</h2>
+      <input type="text" id="addName" placeholder="Set name (e.g. FOOD WORDS)">
+      <p class="hint">Paste terms below, one per line. Works with tabs, “–”, or “-” between English and Spanish, in either order (e.g. <i>The dog&nbsp;&nbsp;El perro</i> or <i>To eat – Comer</i>).</p>
+      <textarea id="addTerms" rows="6" placeholder="The dog	El perro
+The cat – El gato"></textarea>
+      <div class="btn-row">
+        <button id="addBtn">Add set</button>
+        <span class="flash" id="addFlash"></span>
+      </div>
+    </div>
+  </div>
+
+  <div><!-- RIGHT: options + prompt -->
+    <div class="panel">
+      <h2>Practice Options</h2>
+
+      <div class="opt-group">
+        <div class="opt-title">Practice direction</div>
+        <div class="opt-row" id="directionRow">
+          <label><input type="radio" name="direction" value="en-to-es" checked> English → Spanish <span class="hint" style="margin:0">(AI gives English, I translate to Spanish)</span></label>
+        </div>
+        <div class="opt-row">
+          <label><input type="radio" name="direction" value="es-to-en"> Spanish → English <span class="hint" style="margin:0">(AI gives Spanish, I translate to English)</span></label>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-title">Practice mode</div>
+        <div class="opt-row">
+          <label><input type="checkbox" id="drillMode"> Conjugation drill mode <span class="hint" style="margin:0">(AI gives just a subject + verb, e.g. "she walks" — you respond with the conjugated verb, not a full sentence)</span></label>
+        </div>
+        <div class="opt-row" id="drillPerVerbRow" style="margin-top:6px">
+          <label><input type="checkbox" id="drillPerMustVerb"> One item per "must" verb <span class="hint" style="margin:0">(gives exactly one drill item for each must-checked verb, ignoring the count above)</span></label>
+        </div>
+        <div class="opt-row" id="drillShuffleRow" style="margin-top:6px">
+          <label><input type="checkbox" id="drillShuffle" checked> Shuffle order <span class="hint" style="margin:0">(random order each time instead of always the same order)</span></label>
+        </div>
+        <div class="opt-row" id="localDrillRow" style="margin-top:6px">
+          <label><input type="checkbox" id="localDrill"> Local grading — no AI needed <span class="hint" style="margin:0">(the app itself gives items and grades them right here; supports present &amp; preterite)</span></label>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-title">Vocabulary drill (local, no AI)</div>
+        <div class="opt-row">
+          <label><input type="checkbox" id="vocabDrillMode"> Enable vocab drill mode <span class="hint" style="margin:0">(practice term ↔ translation straight from your checked sets — ANY sets, not just verbs — graded instantly here, no AI. Uses the direction, must-terms/sets, coverage helper, and round-size options below.)</span></label>
+        </div>
+        <div class="opt-row" id="vocabFocusRow" style="margin-top:6px">
+          <label><input type="checkbox" id="vocabOnlyFocus"> Only drill my "needs work" list <span id="focusCount" class="hint" style="margin:0"></span></label>
+        </div>
+        <div class="opt-row" id="vocabWrongRow" style="margin-top:6px">
+          <label><input type="checkbox" id="vocabOnlyWrong"> Only drill my "got wrong" list <span id="wrongCount" class="hint" style="margin:0"></span> <span class="hint" style="margin:0">— auto-fills on a miss, clears when you get it right</span></label>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-title">Object-pronoun drill (local, no AI)</div>
+        <div class="opt-row">
+          <label><input type="checkbox" id="dopDrillMode"> Enable object-pronoun drill mode <span class="hint" style="margin:0">(e.g. "He sees her" → <i>la ve</i> — practice direct object pronouns lo/la/los/las/me/te/nos + the conjugated verb. Uses your checked VERBS sets (transitive verbs only), tenses, and persons.)</span></label>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-title">Question drill — dynamic (local, no AI)</div>
+        <div class="opt-row">
+          <label><input type="checkbox" id="dqDrillMode"> Enable dynamic question drill mode <span class="hint" style="margin:0">(builds questions from your checked NOUNS/VERBS sets — "Where is the {noun}?", "How many {plural noun} are there?", "When do you want to {verb}?" — with correct el/la/los/las agreement, and grades your Spanish. Always English → Spanish.)</span></label>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-title">Tenses <span class="hint" style="margin:0">— Can = allowed · Must = force at least one</span></div>
+        <div class="cm-grid" id="tenseRow">
+          <span class="cm-head">Can</span><span class="cm-head">Must</span><span></span>
+          <input type="checkbox" class="can-cb" value="present tense" checked><input type="checkbox" class="must-cb" value="present tense"><span class="cm-label">Present</span>
+          <input type="checkbox" class="can-cb" value="preterite tense"><input type="checkbox" class="must-cb" value="preterite tense"><span class="cm-label">Preterite</span>
+          <input type="checkbox" class="can-cb" value="imperfect tense"><input type="checkbox" class="must-cb" value="imperfect tense"><span class="cm-label">Imperfect</span>
+          <input type="checkbox" class="can-cb" value="simple future (ir + a + infinitive)"><input type="checkbox" class="must-cb" value="simple future (ir + a + infinitive)"><span class="cm-label">Future (ir a...)</span>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-title">Verb restrictions</div>
+        <div class="opt-row">
+          <label><input type="checkbox" id="regularOnly"> Regular verbs only</label>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-title">Subjects / persons <span class="hint" style="margin:0">— Can = allowed · Must = force at least one</span></div>
+        <div class="cm-grid" id="personRow">
+          <span class="cm-head">Can</span><span class="cm-head">Must</span><span></span>
+          <input type="checkbox" class="can-cb" value="yo (I)" checked><input type="checkbox" class="must-cb" value="yo (I)"><span class="cm-label">Yo (I)</span>
+          <input type="checkbox" class="can-cb" value="tú (you, informal)" checked><input type="checkbox" class="must-cb" value="tú (you, informal)"><span class="cm-label">Tú (you)</span>
+          <input type="checkbox" class="can-cb" value="él/ella/usted (he/she/you formal)" checked><input type="checkbox" class="must-cb" value="él/ella/usted (he/she/you formal)"><span class="cm-label">Él/Ella/Usted</span>
+          <input type="checkbox" class="can-cb" value="nosotros (we)" checked><input type="checkbox" class="must-cb" value="nosotros (we)"><span class="cm-label">Nosotros (we)</span>
+          <input type="checkbox" class="can-cb" value="ellos/ellas/ustedes (they/you all)" checked><input type="checkbox" class="must-cb" value="ellos/ellas/ustedes (they/you all)"><span class="cm-label">Ellos/Ellas/Ustedes</span>
+        </div>
+      </div>
+
+      <div class="opt-group" id="grammarGroup">
+        <div class="opt-title">Grammar requirements (each checked one MUST appear in the sentences) <span class="hint" style="margin:0">— ignored in drill mode</span></div>
+        <div class="opt-row opt-col" id="grammarRow">
+          <label><input type="checkbox" value="Include at least one direct object pronoun (me/te/lo/la/nos/los/las), e.g. 'I see her' → 'La veo'."> Direct object pronoun (me/te/lo/la…)</label>
+          <label><input type="checkbox" value="Include at least one indirect object pronoun (me/te/le/nos/les), e.g. 'I give it to him' → 'Le doy'."> Indirect object pronoun (me/te/le…)</label>
+          <label><input type="checkbox" value="Include at least one reflexive verb (e.g. levantarse, sentirse), properly conjugated with its reflexive pronoun."> Reflexive verb (me/te/se…)</label>
+          <label><input type="checkbox" value="Include at least one gustar-type construction (gustar/encantar/interesar/doler), e.g. 'Me gusta el café'."> Gustar-type construction</label>
+          <label><input type="checkbox" value="Include at least one negation (no/nunca/nada/nadie/tampoco)."> Negation (no/nunca/nada…)</label>
+          <label><input type="checkbox" value="Make at least one sentence a question."> A question</label>
+          <label><input type="checkbox" value="Include at least one comparison (más/menos ... que, or tan ... como)."> Comparison (más/menos que…)</label>
+          <label><input type="checkbox" value="Include at least one possessive adjective (mi/tu/su/nuestro)."> Possessive (mi/tu/su…)</label>
+        </div>
+      </div>
+
+      <div class="opt-group" id="focusGroup">
+        <div class="opt-title">Focus set (optional — sentences will emphasize this set) <span class="hint" style="margin:0">— ignored in drill mode</span></div>
+        <select id="focusSet"><option value="">— none —</option></select>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-title">Coverage helper</div>
+        <div class="opt-row">
+          <label><input type="checkbox" id="useSampling"> Require least-practiced terms
+            <span class="hint" style="margin:0">(</span></label>
+          <label>Count: <input type="number" id="sampleCount" value="6" min="2" max="15" style="width:55px"></label>
+        </div>
+        <p class="hint">The app tracks how often each term has been included and picks the least-used ones, so the AI can't keep leaning on the same words. Tallies reset with the button below.</p>
+        <button class="secondary" id="resetTallies">Reset tallies</button>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-title">Sentences per round</div>
+        <select id="numSentences">
+          <option value="1" selected>1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="random">Random (1–5)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="panel" id="promptPanel">
+      <h2>Generated Prompt</h2>
+      <textarea id="promptOut" readonly placeholder="Click “Generate prompt”..."></textarea>
+      <div class="btn-row">
+        <button id="genBtn">Generate prompt</button>
+        <button class="secondary" id="copyBtn">Copy to clipboard</button>
+        <span class="flash" id="copyFlash"></span>
+      </div>
+    </div>
+
+    <div class="panel" id="drillPanel" style="display:none">
+      <div class="drill-header">
+        <h2 id="drillTitle">Local Conjugation Drill</h2>
+        <div class="drill-scorebox">
+          <span id="drillScore" class="drill-score"></span>
+          <span id="drillStreak" class="drill-streak"></span>
+        </div>
+      </div>
+      <div id="drillStatus" class="hint"></div>
+      <form id="drillForm"><div id="drillItems"></div></form>
+      <div class="btn-row">
+        <button id="drillCheckBtn">Check answers</button>
+        <button id="drillNextBtn" class="secondary">New round</button>
+        <button id="drillFlagMissedBtn" class="secondary">★ Flag missed</button>
+        <button id="drillResetBtn" class="secondary">Reset counts</button>
+        <button id="drillResetScoreBtn" class="secondary">Reset score</button>
+        <button id="drillClearFocusBtn" class="secondary">Clear needs-work</button>
+        <button id="drillClearWrongBtn" class="secondary">Clear got-wrong</button>
+      </div>
+      <div id="drillResults"></div>
+      <div id="drillUnavailable" class="hint"></div>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="conjugator.js"></script>
+<script src="app.js"></script>
+<script src="drill.js"></script>
+</body>
+</html>
