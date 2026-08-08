@@ -20,11 +20,19 @@
 <div class="layout">
   <div><!-- LEFT: sets -->
     <div class="panel">
-      <h2>My Sets</h2>
-      <div class="set-controls">
+      <div class="view-tabs">
+        <button id="viewSetsBtn" class="view-tab active">Sets</button>
+        <button id="viewTagsBtn" class="view-tab">Tags</button>
+      </div>
+      <div class="set-controls" id="setsControls">
         <label><input type="checkbox" id="allSets"> All sets</label>
         <button class="secondary" id="expandAll">Expand all</button>
         <button class="secondary" id="collapseAll">Collapse all</button>
+      </div>
+      <div class="set-controls" id="tagsControls" style="display:none">
+        <button class="secondary" id="tagClearAll">Uncheck everything</button>
+        <button class="secondary" id="tagCollapseAll">Collapse all</button>
+        <span class="hint" style="margin:0">Tags are derived automatically · "Only" isolates that tag</span>
       </div>
       <div id="setsContainer"></div>
     </div>
@@ -86,9 +94,44 @@ The cat – El gato"></textarea>
       </div>
 
       <div class="opt-group">
-        <div class="opt-title">Object-pronoun drill (local, no AI)</div>
+        <div class="opt-title">Direct object pronoun drill (local, no AI)</div>
         <div class="opt-row">
-          <label><input type="checkbox" id="dopDrillMode"> Enable object-pronoun drill mode <span class="hint" style="margin:0">(e.g. "He sees her" → <i>la ve</i> — practice direct object pronouns lo/la/los/las/me/te/nos + the conjugated verb. Uses your checked VERBS sets (transitive verbs only), tenses, and persons.)</span></label>
+          <label><input type="checkbox" id="dopDrillMode"> Enable direct object pronoun drill mode (1 verb) <span class="hint" style="margin:0">(e.g. "He sees her" → <i>la ve</i> — one DIRECT object pronoun (lo/la/los/las/me/te/nos) + one conjugated verb, no placement choice. Uses your checked VERBS sets (transitive verbs only), tenses, and persons.)</span></label>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-title">Possessive drill (local, no AI)</div>
+        <div class="opt-row">
+          <label><input type="checkbox" id="possDrillMode"> Enable possessive drill mode <span class="hint" style="margin:0">("My friend is tired" → <i>mi amigo está cansado</i>; "Her computer is new" → <i>su computadora es nueva</i>). Drills possessive agreement (mi/mis, tu/tus, su/sus, nuestro/nuestra/nuestros/nuestras), <b>ser vs estar</b>, and adjective agreement with the noun's gender &amp; number. Uses your checked NOUNS + ADJECTIVES sets.</span></label>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-title">Indirect object pronoun drill (local, no AI)</div>
+        <div class="opt-row">
+          <label><input type="checkbox" id="iopDrillMode"> Enable indirect object pronoun drill mode (no direct object) <span class="hint" style="margin:0">("She speaks to him" → <i>le habla</i>) — one INDIRECT object pronoun (me/te/le/nos/les) + one conjugated verb, with no direct object. Uses only verbs that genuinely take an indirect object (hablar, contestar, preguntar, escribir, pagar, creer, explicar). Also drills the redundant pronoun when the recipient is named: "She speaks to the man" → <i>le habla al hombre</i>.</span></label>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-title">Double-object-pronoun drill (local, no AI)</div>
+        <div class="opt-row">
+          <label><input type="checkbox" id="dblDrillMode"> Enable indirect + direct object pronoun drill mode (double pronoun) <span class="hint" style="margin:0">("I give it to him" → <i>se lo doy</i>). Practices an INDIRECT object pronoun (me/te/le/nos/les) together with a DIRECT one (lo/la/los/las) in the same sentence, including the <b>le/les → se</b> rule before lo/la/los/las. Items randomly mix single-verb answers (1 correct form) and auxiliary+verb answers with both placements (2 correct forms, e.g. <i>se lo quiero dar</i> / <i>quiero dárselo</i>).</span></label>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-title">Pronoun-placement drill (local, no AI)</div>
+        <div class="opt-row">
+          <label><input type="checkbox" id="ppDrillMode"> Enable direct object pronoun placement drill mode (2 verbs) <span class="hint" style="margin:0">("I want to see you" → <i>te quiero ver</i> OR <i>quiero verte</i> — both accepted). Same DIRECT object pronoun as the 1-verb mode above, but with an auxiliary verb (querer / poder / tener que / ir a / necesitar / intentar) + a transitive verb, so the pronoun can go before the auxiliary OR attached to the infinitive.</span></label>
+        </div>
+      </div>
+
+      <div class="opt-group">
+        <div class="opt-title">Gustar-type drill (local, no AI)</div>
+        <div class="opt-row">
+          <label><input type="checkbox" id="gustarDrillMode"> Enable gustar-type drill mode <span class="hint" style="margin:0">("I like the car" → <i>me gusta el carro</i>; "The man likes the cars" → <i>al hombre le gustan los carros</i>). Uses gustar/encantar/interesar/doler from your checked sets, plus your checked NOUNS, tenses and persons. Includes negatives.</span></label>
         </div>
       </div>
 
@@ -201,6 +244,9 @@ The cat – El gato"></textarea>
         <button id="drillClearFocusBtn" class="secondary">Clear needs-work</button>
         <button id="drillClearWrongBtn" class="secondary">Clear got-wrong</button>
       </div>
+      <div class="btn-row" id="drillOnlyWrongRow" style="display:none">
+        <label><input type="checkbox" id="drillOnlyWrongToggle"> Only drill my "got wrong" list <span id="drillWrongCount" class="hint" style="margin:0"></span></label>
+      </div>
       <div id="drillResults"></div>
       <div id="drillUnavailable" class="hint"></div>
     </div>
@@ -209,6 +255,7 @@ The cat – El gato"></textarea>
 
 <script src="data.js"></script>
 <script src="conjugator.js"></script>
+<script src="tags.js"></script>
 <script src="app.js"></script>
 <script src="drill.js"></script>
 </body>

@@ -185,6 +185,28 @@
     enfocarse: { en: "focus" }, // -car → me enfoqué
     practicar: { en: "practice" }, // -car → practiqué
     mejorar: { en: "improve" },
+
+    // ---- common verbs pt.4 ----
+    usar: { en: "use" },
+    ducharse: { en: "shower" },
+    desayunar: { en: { base: "eat breakfast", third: "eats breakfast", past: "ate breakfast" } },
+    almorzar: { en: { base: "eat lunch", third: "eats lunch", past: "ate lunch" },
+      present: ["almuerzo", "almuerzas", "almuerza", "almorzamos", "almuerzan"] }, // preterite regular -zar → almorcé
+    cenar: { en: { base: "eat dinner", third: "eats dinner", past: "ate dinner" } },
+    cocinar: { en: "cook" },
+    limpiar: { en: "clean" },
+    lavar: { en: "wash" },
+    secar: { en: "dry" }, // preterite regular -car → sequé
+    quedarse: { en: "stay" },
+    manejar: { en: { base: "drive", third: "drives", past: "drove" } },
+    estacionar: { en: "park" },
+    pasear: { en: "stroll" },
+    ejercitarse: { en: "exercise" },
+    descansar: { en: "rest" },
+    disfrutar: { en: "enjoy" },
+    visitar: { en: "visit" },
+    llevar: { en: { base: "take", third: "takes", past: "took" } },
+    abrazar: { en: { base: "hug", third: "hugs", past: "hugged" } }, // preterite regular -zar → abracé
   };
 
   function isReflexive(inf) { return inf.endsWith("se"); }
@@ -249,11 +271,33 @@
     "contestar", "decidir", "elegir", "planear", "practicar", "mejorar",
     "lanzar", "patear", "golpear", "abofetear", "empujar", "jalar", "levantar",
     "cargar", "parar", "seguir", "dudar",
+    "usar", "cocinar", "limpiar", "lavar", "secar", "manejar", "estacionar",
+    "pasear", "disfrutar", "visitar", "llevar", "abrazar",
   ]);
   function canTakeObject(inf) {
     inf = (inf || "").toLowerCase().trim();
     return !!V[inf] && TRANSITIVE.has(inf);
   }
 
-  global.Conjugator = { conjugate, englishForm, isDrillable, canTakeObject, REFLEX };
+  // Describes a verb's shape so the tag system can label it without a second
+  // hand-maintained list: an explicit forms array here means "irregular".
+  function pattern(inf) {
+    inf = (inf || "").toLowerCase().trim();
+    const reflexive = isReflexive(inf);
+    const genInf = reflexive ? inf.slice(0, -2) : inf;
+    const ending = genInf.slice(-2);
+    if (!["ar", "er", "ir"].includes(ending)) return null;
+    const entry = V[inf];
+    const spellingChange = ending === "ar" &&
+      (genInf.endsWith("gar") || genInf.endsWith("car") || genInf.endsWith("zar"));
+    return {
+      known: !!entry,
+      reflexive,
+      ending: "-" + ending,
+      present: entry && entry.present ? "irregular" : "regular",
+      preterite: entry && entry.preterite ? "irregular" : (spellingChange ? "spelling-change" : "regular"),
+    };
+  }
+
+  global.Conjugator = { conjugate, englishForm, isDrillable, canTakeObject, pattern, REFLEX };
 })(window);

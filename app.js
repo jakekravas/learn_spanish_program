@@ -37,7 +37,77 @@ function save() {
 const setsContainer = document.getElementById("setsContainer");
 const focusSelect = document.getElementById("focusSet");
 
+// Builds one term <tr>. Shared by the Sets view and the Tags view; `subtitle`
+// shows the owning set name when the row is listed under a tag.
+function buildTermRow(t, subtitle) {
+  const tr = document.createElement("tr");
+  if (t.checked === false) tr.className = "term-off";
+
+  const tdCb = document.createElement("td"); tdCb.className = "term-cb";
+  const termCb = document.createElement("input");
+  termCb.type = "checkbox";
+  termCb.title = "Can be used (include in vocabulary list)";
+  termCb.checked = t.checked !== false;
+  termCb.addEventListener("change", () => {
+    t.checked = termCb.checked;
+    if (!t.checked) t.must = false; // can't require a term that's excluded
+    save(); render();
+  });
+  tdCb.appendChild(termCb);
+
+  const tdMust = document.createElement("td"); tdMust.className = "term-must";
+  const mustCb = document.createElement("input");
+  mustCb.type = "checkbox";
+  mustCb.title = "Must be used (force into every generated prompt)";
+  mustCb.checked = !!t.must;
+  mustCb.addEventListener("change", () => {
+    t.must = mustCb.checked;
+    if (t.must) t.checked = true; // a required term must also be eligible
+    save(); render();
+  });
+  tdMust.appendChild(mustCb);
+
+  const tdEn = document.createElement("td"); tdEn.textContent = t.en;
+  const tdEs = document.createElement("td"); tdEs.className = "es"; tdEs.textContent = t.es;
+  const tdNote = document.createElement("td"); tdNote.className = "note";
+  tdNote.textContent = subtitle ? subtitle : (t.note || "");
+  const tdTally = document.createElement("td"); tdTally.className = "tally";
+  tdTally.textContent = t.tally ? `×${t.tally}` : "";
+  tdTally.title = "Times included as a required term";
+
+  const tdFocus = document.createElement("td"); tdFocus.className = "term-focus";
+  const starBtn = document.createElement("button");
+  starBtn.type = "button";
+  starBtn.className = "focus-star" + (t.focus ? " on" : "");
+  starBtn.textContent = t.focus ? "★" : "☆";
+  starBtn.title = "Add/remove from \"needs work\" list";
+  starBtn.addEventListener("click", () => {
+    t.focus = !t.focus;
+    save(); render();
+  });
+  tdFocus.appendChild(starBtn);
+
+  tr.append(tdCb, tdMust, tdEn, tdEs, tdNote, tdTally, tdFocus);
+  return tr;
+}
+
+function termTableHead() {
+  const thead = document.createElement("thead");
+  thead.innerHTML =
+    '<tr><th title="Can be used">Can</th><th title="Must be used">Must</th><th>English</th><th>Spanish</th><th>Note</th><th></th><th title="Needs-work list">★</th></tr>';
+  return thead;
+}
+
+let viewMode = "sets"; // "sets" | "tags"
+const tagOpen = {};    // tag -> expanded?
+
 function render() {
+  if (viewMode === "tags") return renderTags();
+  renderSets();
+  refreshFocusSelect();
+}
+
+function renderSets() {
   setsContainer.innerHTML = "";
   state.sets.forEach((set, i) => {
     const div = document.createElement("div");
@@ -143,66 +213,18 @@ function render() {
     body.appendChild(termControls);
 
     const table = document.createElement("table");
-    const thead = document.createElement("thead");
-    thead.innerHTML =
-      '<tr><th title="Can be used">Can</th><th title="Must be used">Must</th><th>English</th><th>Spanish</th><th>Note</th><th></th><th title="Needs-work list">★</th></tr>';
-    table.appendChild(thead);
-    set.terms.forEach(t => {
-      const tr = document.createElement("tr");
-      if (t.checked === false) tr.className = "term-off";
-
-      const tdCb = document.createElement("td"); tdCb.className = "term-cb";
-      const termCb = document.createElement("input");
-      termCb.type = "checkbox";
-      termCb.title = "Can be used (include in vocabulary list)";
-      termCb.checked = t.checked !== false;
-      termCb.addEventListener("change", () => {
-        t.checked = termCb.checked;
-        if (!t.checked) t.must = false; // can't require a term that's excluded
-        save(); render();
-      });
-      tdCb.appendChild(termCb);
-
-      const tdMust = document.createElement("td"); tdMust.className = "term-must";
-      const mustCb = document.createElement("input");
-      mustCb.type = "checkbox";
-      mustCb.title = "Must be used (force into every generated prompt)";
-      mustCb.checked = !!t.must;
-      mustCb.addEventListener("change", () => {
-        t.must = mustCb.checked;
-        if (t.must) t.checked = true; // a required term must also be eligible
-        save(); render();
-      });
-      tdMust.appendChild(mustCb);
-
-      const tdEn = document.createElement("td"); tdEn.textContent = t.en;
-      const tdEs = document.createElement("td"); tdEs.className = "es"; tdEs.textContent = t.es;
-      const tdNote = document.createElement("td"); tdNote.className = "note"; tdNote.textContent = t.note || "";
-      const tdTally = document.createElement("td"); tdTally.className = "tally";
-      tdTally.textContent = t.tally ? `×${t.tally}` : "";
-      tdTally.title = "Times included as a required term";
-
-      const tdFocus = document.createElement("td"); tdFocus.className = "term-focus";
-      const starBtn = document.createElement("button");
-      starBtn.type = "button";
-      starBtn.className = "focus-star" + (t.focus ? " on" : "");
-      starBtn.textContent = t.focus ? "★" : "☆";
-      starBtn.title = "Add/remove from \"needs work\" list";
-      starBtn.addEventListener("click", () => {
-        t.focus = !t.focus;
-        save(); render();
-      });
-      tdFocus.appendChild(starBtn);
-
-      tr.append(tdCb, tdMust, tdEn, tdEs, tdNote, tdTally, tdFocus);
-      table.appendChild(tr);
-    });
+    table.appendChild(termTableHead());
+    set.terms.forEach(t => table.appendChild(buildTermRow(t)));
     body.appendChild(table);
 
     div.append(header, body);
     setsContainer.appendChild(div);
   });
 
+  syncAllCheckbox();
+}
+
+function refreshFocusSelect() {
   // focus dropdown
   const prev = focusSelect.value;
   focusSelect.innerHTML = '<option value="">— none —</option>';
@@ -216,6 +238,125 @@ function render() {
 
   syncAllCheckbox();
 }
+
+// ---------- tag view ----------
+// A term counts as "on" only if its own box is checked AND its set is checked,
+// which is what the prompt builder and drills actually use.
+const entryOn = e => e.term.checked !== false && e.set.checked;
+
+function renderTags() {
+  setsContainer.innerHTML = "";
+  const groups = Tags.grouped(Tags.buildIndex(state.sets));
+
+  groups.forEach(group => {
+    const gHead = document.createElement("div");
+    gHead.className = "tag-group-label";
+    gHead.textContent = group.label;
+    setsContainer.appendChild(gHead);
+
+    group.tags.forEach(tagInfo => {
+      const { tag, value, entries } = tagInfo;
+      const onCount = entries.filter(entryOn).length;
+      const open = !!tagOpen[tag];
+
+      const div = document.createElement("div");
+      div.className = "set" + (open ? " open" : "");
+
+      const header = document.createElement("div");
+      header.className = "set-header";
+
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.title = "Check/uncheck every term with this tag";
+      cb.checked = onCount === entries.length;
+      cb.indeterminate = onCount > 0 && onCount < entries.length;
+      cb.addEventListener("click", e => e.stopPropagation());
+      cb.addEventListener("change", () => {
+        entries.forEach(e => {
+          e.term.checked = cb.checked;
+          if (!cb.checked) e.term.must = false;
+          if (cb.checked) e.set.checked = true; // the term's set must be on too
+        });
+        save(); render();
+      });
+
+      const mustCb = document.createElement("input");
+      mustCb.type = "checkbox";
+      mustCb.className = "set-must-cb";
+      mustCb.title = "Require every term with this tag";
+      mustCb.checked = entries.length > 0 && entries.every(e => e.term.must);
+      mustCb.addEventListener("click", e => e.stopPropagation());
+      mustCb.addEventListener("change", () => {
+        entries.forEach(e => {
+          e.term.must = mustCb.checked;
+          if (mustCb.checked) { e.term.checked = true; e.set.checked = true; }
+        });
+        save(); render();
+      });
+
+      const name = document.createElement("span");
+      name.className = "name";
+      name.textContent = value;
+
+      const count = document.createElement("span");
+      count.className = "count";
+      count.textContent = `${onCount}/${entries.length}`;
+
+      const onlyBtn = document.createElement("button");
+      onlyBtn.className = "secondary mini";
+      onlyBtn.textContent = "Only";
+      onlyBtn.title = "Uncheck everything else, then check just this tag";
+      onlyBtn.addEventListener("click", ev => {
+        ev.stopPropagation();
+        state.sets.forEach(s => s.terms.forEach(t => { t.checked = false; t.must = false; }));
+        entries.forEach(e => { e.term.checked = true; e.set.checked = true; });
+        save(); render();
+      });
+
+      const chev = document.createElement("span");
+      chev.className = "chev";
+      chev.textContent = "▶";
+
+      header.append(cb, mustCb, name, count, onlyBtn, chev);
+      header.addEventListener("click", () => {
+        tagOpen[tag] = !tagOpen[tag];
+        render();
+      });
+
+      const body = document.createElement("div");
+      body.className = "set-body";
+      if (open) {
+        const table = document.createElement("table");
+        table.appendChild(termTableHead());
+        entries.forEach(e => table.appendChild(buildTermRow(e.term, e.set.name)));
+        body.appendChild(table);
+      }
+
+      div.append(header, body);
+      setsContainer.appendChild(div);
+    });
+  });
+}
+
+document.getElementById("viewSetsBtn").addEventListener("click", () => setView("sets"));
+document.getElementById("viewTagsBtn").addEventListener("click", () => setView("tags"));
+function setView(mode) {
+  viewMode = mode;
+  const isTags = mode === "tags";
+  document.getElementById("viewSetsBtn").classList.toggle("active", !isTags);
+  document.getElementById("viewTagsBtn").classList.toggle("active", isTags);
+  document.getElementById("setsControls").style.display = isTags ? "none" : "";
+  document.getElementById("tagsControls").style.display = isTags ? "" : "none";
+  render();
+}
+document.getElementById("tagClearAll").addEventListener("click", () => {
+  state.sets.forEach(s => s.terms.forEach(t => { t.checked = false; t.must = false; }));
+  save(); render();
+});
+document.getElementById("tagCollapseAll").addEventListener("click", () => {
+  for (const k in tagOpen) delete tagOpen[k];
+  render();
+});
 
 const allSetsCb = document.getElementById("allSets");
 function syncAllCheckbox() {
@@ -539,7 +680,12 @@ function syncDrillModeUI() {
   const vocabOn = document.getElementById("vocabDrillMode").checked;
   const dopOn = document.getElementById("dopDrillMode").checked;
   const dqOn = document.getElementById("dqDrillMode").checked;
-  const anyLocal = on || vocabOn || dopOn || dqOn;
+  const gustarOn = document.getElementById("gustarDrillMode").checked;
+  const ppOn = document.getElementById("ppDrillMode").checked;
+  const dblOn = document.getElementById("dblDrillMode").checked;
+  const iopOn = document.getElementById("iopDrillMode").checked;
+  const possOn = document.getElementById("possDrillMode").checked;
+  const anyLocal = on || vocabOn || dopOn || dqOn || gustarOn || ppOn || dblOn || iopOn || possOn;
   document.getElementById("grammarGroup").classList.toggle("opt-disabled", anyLocal);
   document.getElementById("focusGroup").classList.toggle("opt-disabled", anyLocal);
   document.getElementById("drillPerVerbRow").classList.toggle("opt-disabled", !on);
@@ -551,6 +697,11 @@ document.getElementById("drillPerMustVerb").addEventListener("change", syncDrill
 document.getElementById("vocabDrillMode").addEventListener("change", syncDrillModeUI);
 document.getElementById("dopDrillMode").addEventListener("change", syncDrillModeUI);
 document.getElementById("dqDrillMode").addEventListener("change", syncDrillModeUI);
+document.getElementById("gustarDrillMode").addEventListener("change", syncDrillModeUI);
+document.getElementById("ppDrillMode").addEventListener("change", syncDrillModeUI);
+document.getElementById("dblDrillMode").addEventListener("change", syncDrillModeUI);
+document.getElementById("iopDrillMode").addEventListener("change", syncDrillModeUI);
+document.getElementById("possDrillMode").addEventListener("change", syncDrillModeUI);
 syncDrillModeUI();
 
 // Keep Can/Must consistent in the tense & person grids:
