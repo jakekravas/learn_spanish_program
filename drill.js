@@ -1477,9 +1477,7 @@
         const star = it.kind === "vocab"
           ? `<button type="button" class="drill-star${it.term.focus ? " on" : ""}" data-i="${i}" title="Add/remove from &quot;needs work&quot; list">${it.term.focus ? "★" : "☆"}</button>`
           : "";
-        const copyBtn = it.kind === "dq"
-          ? `<button type="button" class="drill-copy" data-i="${i}" title="Copy this question">📋</button>`
-          : "";
+        const copyBtn = `<button type="button" class="drill-copy" data-i="${i}" title="Copy this prompt">📋</button>`;
         return `
         <div class="drill-item">
           <span class="drill-num">${i + 1}.</span>
