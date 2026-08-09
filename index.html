@@ -55,7 +55,17 @@ The cat – El gato"></textarea>
       <h2>Practice Options</h2>
 
       <div class="opt-group">
-        <div class="opt-title">Practice direction</div>
+        <div class="opt-title">Practice format</div>
+        <div class="opt-row">
+          <label><input type="radio" name="format" value="text" checked> Written <span class="hint" style="margin:0">(you type your answers into the AI chat)</span></label>
+        </div>
+        <div class="opt-row">
+          <label><input type="radio" name="format" value="voice"> Voice conversation <span class="hint" style="margin:0">(paste into ChatGPT voice mode and just talk — a real Spanish conversation, but the AI is restricted to your checked vocabulary)</span></label>
+        </div>
+      </div>
+
+      <div class="opt-group" id="directionGroup">
+        <div class="opt-title">Practice direction <span class="hint" style="margin:0">— ignored in voice mode</span></div>
         <div class="opt-row" id="directionRow">
           <label><input type="radio" name="direction" value="en-to-es" checked> English → Spanish <span class="hint" style="margin:0">(AI gives English, I translate to Spanish)</span></label>
         </div>
@@ -202,7 +212,7 @@ The cat – El gato"></textarea>
         <button class="secondary" id="resetTallies">Reset tallies</button>
       </div>
 
-      <div class="opt-group">
+      <div class="opt-group" id="numSentencesGroup">
         <div class="opt-title">Sentences per round</div>
         <select id="numSentences">
           <option value="1" selected>1</option>

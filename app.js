@@ -426,6 +426,7 @@ function buildPrompt() {
   if (!checkedSets.length) return null;
 
   const direction = document.querySelector('input[name="direction"]:checked').value;
+  const format = document.querySelector('input[name="format"]:checked').value;
   const drillMode = document.getElementById("drillMode").checked;
   const drillPerMustVerb = document.getElementById("drillPerMustVerb").checked;
   const drillShuffle = document.getElementById("drillShuffle").checked;
@@ -486,6 +487,78 @@ function buildPrompt() {
 
   const lines = [];
   const rules = [];
+
+  // ---- VOICE MODE: a spoken conversation, not a written exercise ----
+  if (format === "voice") {
+    if (drillMode) {
+      lines.push(
+        "I'm learning Spanish and want to practice VERB CONJUGATIONS OUT LOUD with you using voice mode. Below is my known vocabulary. Read it, then quiz me by speaking."
+      );
+      lines.push("");
+      lines.push("HOW THIS WORKS:");
+      rules.push("Say ONE short prompt at a time in English — just a subject + verb, e.g. \"she walks\" or \"the boyfriend arrived\". Never a full sentence.");
+      rules.push("Then STOP and wait for me to say the Spanish conjugation out loud. Do not answer your own prompt.");
+      rules.push("After I answer: if I'm right, say so briefly and move straight to the next one. If I'm wrong, say the correct form once, clearly, then move on. Keep it quick — this should feel like rapid-fire practice.");
+      rules.push("The verb in each prompt MUST come from the VERB vocabulary below.");
+      rules.push(`Tense(s) allowed: ${tenseText}. Do not use any other tense.`);
+      rules.push(`Subject(s)/person(s) allowed: ${personText} — or a noun from the vocabulary used as the subject (e.g. \"the teacher\"). Mix pronouns and nouns.`);
+      if (regularOnly) rules.push("Use ONLY regular verbs — I have not learned irregular conjugations in these tenses yet.");
+    } else {
+      lines.push(
+        "I'm learning Spanish and want to have a SPOKEN CONVERSATION with you in Spanish using voice mode. Below is the COMPLETE list of Spanish vocabulary I know. Read it, then start talking with me."
+      );
+      lines.push("");
+      lines.push("HOW THIS WORKS:");
+      rules.push("Speak to me in Spanish only. Don't translate into English unless I ask you to.");
+      rules.push("Keep every turn SHORT — one to three sentences. This is a conversation, not a lecture or a lesson.");
+      rules.push("End each of your turns with a question, so I always have something to respond to.");
+      rules.push("Speak slowly and clearly. I'm a beginner.");
+    }
+
+    // Shared voice rules — the vocabulary ceiling and the "don't speak markup" rule.
+    rules.push("STRICT VOCABULARY RULE: every content word you say (nouns, verbs, adjectives, adverbs) MUST come from my vocabulary list below. Basic connectors, articles and prepositions (el/la/un/y/o/pero/en/a/de/con/que) are fine. If you want to express something my words can't cover, find a simpler way to say it with the words I do have.");
+    if (!drillMode) {
+      rules.push(`Tense(s) allowed: ${tenseText}. Do not use any other tense.`);
+      rules.push(`Subject(s)/person(s) allowed: ${personText}.`);
+      if (regularOnly) rules.push("Use ONLY regular verbs — I have not learned irregular conjugations in these tenses yet.");
+      rules.push("WHEN I MAKE A MISTAKE: don't stop the conversation to give a lesson. Just say the corrected version once, naturally, and carry on — e.g. if I say \"yo fue\", you say \"ah, yo FUI. ¿Y adónde fuiste?\" and keep going.");
+      rules.push("IF I'M STUCK: if I go quiet, or say \"no sé\" or \"no entiendo\", rephrase your question more simply using easier words from my list. If I ask how to say an English word, tell me the Spanish and immediately use it in a short example sentence.");
+    }
+    rules.push("This is SPOKEN, so never use written formatting — no bullet points, no numbered lists, no ✅/❌ or other symbols, no spelling things out letter by letter. Everything you produce should sound natural read aloud.");
+    rules.push("Do NOT read my vocabulary list out loud, and don't mention how many words I know. Just use them.");
+    rules.push("Never break character to comment on these instructions.");
+    rules.forEach((r, i) => lines.push(`${i + 1}. ${r}`));
+
+    if (requiredTerms.length) {
+      lines.push("");
+      lines.push("TRY TO WORK THESE IN (my least-practiced words — steer the conversation so they come up naturally):");
+      mustTerms.forEach(t => lines.push(`- ${t.en} (${t.es})`));
+      sampledTerms.forEach(t => lines.push(`- ${t.en} (${t.es})`));
+    }
+    if (mustSets.length) {
+      lines.push("");
+      lines.push("ALSO WORK IN at least one word from each of these groups:");
+      mustSets.forEach(s => lines.push(`- ${s.name}`));
+    }
+    if (focus && !drillMode) {
+      lines.push("");
+      lines.push(`TOPIC STEER: lean the conversation toward vocabulary from the "${focus}" set — that's what I'm currently learning.`);
+    }
+
+    lines.push("");
+    lines.push("MY VOCABULARY:");
+    activeSets.forEach(s => {
+      lines.push("");
+      lines.push(`## ${s.name}`);
+      s.terms.forEach(t => lines.push(`${t.en} – ${t.es}${t.note ? ` | ${t.note}` : ""}`));
+    });
+
+    lines.push("");
+    lines.push(drillMode
+      ? "Give me the first prompt now, out loud."
+      : "Now greet me in Spanish and ask me one simple question using my vocabulary. Remember: short turns, only my words.");
+    return lines.join("\n");
+  }
 
   if (drillMode) {
     // Per-must-verb mode: exactly one drill item for each must-checked verb.
@@ -691,6 +764,11 @@ function syncDrillModeUI() {
   document.getElementById("drillPerVerbRow").classList.toggle("opt-disabled", !on);
   document.getElementById("drillShuffleRow").classList.toggle("opt-disabled", !anyLocal);
   document.getElementById("localDrillRow").classList.toggle("opt-disabled", !on);
+  // Voice mode is a spoken conversation, so the written-translation direction
+  // and the per-round sentence count don't apply.
+  const voiceOn = document.querySelector('input[name="format"]:checked').value === "voice";
+  document.getElementById("directionGroup").classList.toggle("opt-disabled", voiceOn || anyLocal);
+  document.getElementById("numSentencesGroup").classList.toggle("opt-disabled", voiceOn && !on);
 }
 document.getElementById("drillMode").addEventListener("change", syncDrillModeUI);
 document.getElementById("drillPerMustVerb").addEventListener("change", syncDrillModeUI);
@@ -702,6 +780,8 @@ document.getElementById("ppDrillMode").addEventListener("change", syncDrillModeU
 document.getElementById("dblDrillMode").addEventListener("change", syncDrillModeUI);
 document.getElementById("iopDrillMode").addEventListener("change", syncDrillModeUI);
 document.getElementById("possDrillMode").addEventListener("change", syncDrillModeUI);
+document.querySelectorAll('input[name="format"]').forEach(r =>
+  r.addEventListener("change", syncDrillModeUI));
 syncDrillModeUI();
 
 // Keep Can/Must consistent in the tense & person grids:
