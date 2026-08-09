@@ -514,12 +514,21 @@ function buildPrompt() {
       );
       lines.push("");
       lines.push("HOW THIS WORKS:");
-      rules.push(`${isVoice ? "Speak" : "Write"} to me in Spanish only. Don't translate into English unless I ask you to.`);
+      rules.push(`${isVoice ? "Speak" : "Write"} to me in Spanish, not English — with ONE exception: correcting my mistakes, described below. Don't translate yourself into English otherwise.`);
       rules.push("Keep every turn SHORT — one to three sentences. This is a conversation, not a lecture or a lesson.");
       rules.push("End each of your turns with a question, so I always have something to respond to.");
       if (isVoice) rules.push("Speak slowly and clearly. I'm a beginner.");
       else rules.push("Use simple, short sentences. I'm a beginner.");
-      rules.push(`WHEN I MAKE A MISTAKE: don't stop the conversation to give a lesson. Just ${say} the corrected version once, naturally, and carry on — e.g. if I ${say} "yo fue", you ${say} "ah, yo FUI. ¿Y adónde fuiste?" and keep going.`);
+      rules.push(
+        "WHEN MY SPANISH IS CORRECT: say NOTHING about my grammar. Don't praise me, don't tell me I got it right, don't repeat my sentence back to me. Just respond to what I actually said and keep the conversation moving."
+      );
+      rules.push(
+        "WHEN I GET SOMETHING WRONG (a grammar error, the wrong word, or something that doesn't make sense): " +
+        "briefly tell me IN ENGLISH what was wrong and give me the corrected Spanish. Keep it to one or two short sentences — enough to understand the fix, not a grammar lecture. " +
+        `Then immediately switch back to Spanish and continue the conversation. For example, if I ${say} "yo fue al tienda", you ${say}: ` +
+        "\"Small fix — it's 'yo fui a la tienda': fui is the yo form, and tienda is feminine so it takes la. ¿Qué compraste en la tienda?\""
+      );
+      rules.push("Only correct real errors. If what I said is correct but you'd phrase it differently, let it go — don't nitpick natural variation.");
       rules.push(`IF I'M STUCK: if I ${isVoice ? "go quiet, or say" : "say"} "no sé" or "no entiendo", rephrase your question more simply using easier words from my list. If I ask how to say an English word, tell me the Spanish and immediately use it in a short example sentence.`);
     }
 
