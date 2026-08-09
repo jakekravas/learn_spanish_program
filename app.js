@@ -488,9 +488,11 @@ function buildPrompt() {
   const lines = [];
   const rules = [];
 
-  // ---- VOICE MODE: a spoken conversation, not a written exercise ----
-  if (format === "voice") {
-    if (drillMode) {
+  // ---- CONVERSATION MODES: a real back-and-forth, not a translation exercise.
+  // "voice" is spoken, "chat" is typed; they share almost everything. ----
+  const isVoice = format === "voice";
+  if (isVoice || (format === "chat" && !drillMode)) {
+    if (isVoice && drillMode) {
       lines.push(
         "I'm learning Spanish and want to practice VERB CONJUGATIONS OUT LOUD with you using voice mode. Below is my known vocabulary. Read it, then quiz me by speaking."
       );
@@ -504,28 +506,37 @@ function buildPrompt() {
       rules.push(`Subject(s)/person(s) allowed: ${personText} — or a noun from the vocabulary used as the subject (e.g. \"the teacher\"). Mix pronouns and nouns.`);
       if (regularOnly) rules.push("Use ONLY regular verbs — I have not learned irregular conjugations in these tenses yet.");
     } else {
+      const say = isVoice ? "say" : "write";
       lines.push(
-        "I'm learning Spanish and want to have a SPOKEN CONVERSATION with you in Spanish using voice mode. Below is the COMPLETE list of Spanish vocabulary I know. Read it, then start talking with me."
+        isVoice
+          ? "I'm learning Spanish and want to have a SPOKEN CONVERSATION with you in Spanish using voice mode. Below is the COMPLETE list of Spanish vocabulary I know. Read it, then start talking with me."
+          : "I'm learning Spanish and want to have a real CONVERSATION with you in Spanish by typing — not a translation exercise. You write to me in Spanish, I write back in Spanish. Below is the COMPLETE list of Spanish vocabulary I know. Read it, then start the conversation."
       );
       lines.push("");
       lines.push("HOW THIS WORKS:");
-      rules.push("Speak to me in Spanish only. Don't translate into English unless I ask you to.");
+      rules.push(`${isVoice ? "Speak" : "Write"} to me in Spanish only. Don't translate into English unless I ask you to.`);
       rules.push("Keep every turn SHORT — one to three sentences. This is a conversation, not a lecture or a lesson.");
       rules.push("End each of your turns with a question, so I always have something to respond to.");
-      rules.push("Speak slowly and clearly. I'm a beginner.");
+      if (isVoice) rules.push("Speak slowly and clearly. I'm a beginner.");
+      else rules.push("Use simple, short sentences. I'm a beginner.");
+      rules.push(`WHEN I MAKE A MISTAKE: don't stop the conversation to give a lesson. Just ${say} the corrected version once, naturally, and carry on — e.g. if I ${say} "yo fue", you ${say} "ah, yo FUI. ¿Y adónde fuiste?" and keep going.`);
+      rules.push(`IF I'M STUCK: if I ${isVoice ? "go quiet, or say" : "say"} "no sé" or "no entiendo", rephrase your question more simply using easier words from my list. If I ask how to say an English word, tell me the Spanish and immediately use it in a short example sentence.`);
     }
 
-    // Shared voice rules — the vocabulary ceiling and the "don't speak markup" rule.
-    rules.push("STRICT VOCABULARY RULE: every content word you say (nouns, verbs, adjectives, adverbs) MUST come from my vocabulary list below. Basic connectors, articles and prepositions (el/la/un/y/o/pero/en/a/de/con/que) are fine. If you want to express something my words can't cover, find a simpler way to say it with the words I do have.");
+    // Shared: the vocabulary ceiling and the grammar restrictions.
+    rules.push("STRICT VOCABULARY RULE: every content word you use (nouns, verbs, adjectives, adverbs) MUST come from my vocabulary list below. Basic connectors, articles and prepositions (el/la/un/y/o/pero/en/a/de/con/que) are fine. If you want to express something my words can't cover, find a simpler way to say it with the words I do have.");
     if (!drillMode) {
       rules.push(`Tense(s) allowed: ${tenseText}. Do not use any other tense.`);
       rules.push(`Subject(s)/person(s) allowed: ${personText}.`);
       if (regularOnly) rules.push("Use ONLY regular verbs — I have not learned irregular conjugations in these tenses yet.");
-      rules.push("WHEN I MAKE A MISTAKE: don't stop the conversation to give a lesson. Just say the corrected version once, naturally, and carry on — e.g. if I say \"yo fue\", you say \"ah, yo FUI. ¿Y adónde fuiste?\" and keep going.");
-      rules.push("IF I'M STUCK: if I go quiet, or say \"no sé\" or \"no entiendo\", rephrase your question more simply using easier words from my list. If I ask how to say an English word, tell me the Spanish and immediately use it in a short example sentence.");
     }
-    rules.push("This is SPOKEN, so never use written formatting — no bullet points, no numbered lists, no ✅/❌ or other symbols, no spelling things out letter by letter. Everything you produce should sound natural read aloud.");
-    rules.push("Do NOT read my vocabulary list out loud, and don't mention how many words I know. Just use them.");
+    if (isVoice) {
+      rules.push("This is SPOKEN, so never use written formatting — no bullet points, no numbered lists, no ✅/❌ or other symbols, no spelling things out letter by letter. Everything you produce should sound natural read aloud.");
+      rules.push("Do NOT read my vocabulary list out loud, and don't mention how many words I know. Just use them.");
+    } else {
+      rules.push("Keep your replies clean and conversational — no bullet points, no numbered lists, no tables. Write like a person texting me, not like a worksheet.");
+      rules.push("Do NOT repeat my vocabulary list back to me, and don't mention how many words I know. Just use them.");
+    }
     rules.push("Never break character to comment on these instructions.");
     rules.forEach((r, i) => lines.push(`${i + 1}. ${r}`));
 
@@ -540,7 +551,7 @@ function buildPrompt() {
       lines.push("ALSO WORK IN at least one word from each of these groups:");
       mustSets.forEach(s => lines.push(`- ${s.name}`));
     }
-    if (focus && !drillMode) {
+    if (focus && !(isVoice && drillMode)) {
       lines.push("");
       lines.push(`TOPIC STEER: lean the conversation toward vocabulary from the "${focus}" set — that's what I'm currently learning.`);
     }
@@ -554,7 +565,7 @@ function buildPrompt() {
     });
 
     lines.push("");
-    lines.push(drillMode
+    lines.push(isVoice && drillMode
       ? "Give me the first prompt now, out loud."
       : "Now greet me in Spanish and ask me one simple question using my vocabulary. Remember: short turns, only my words.");
     return lines.join("\n");
@@ -764,11 +775,12 @@ function syncDrillModeUI() {
   document.getElementById("drillPerVerbRow").classList.toggle("opt-disabled", !on);
   document.getElementById("drillShuffleRow").classList.toggle("opt-disabled", !anyLocal);
   document.getElementById("localDrillRow").classList.toggle("opt-disabled", !on);
-  // Voice mode is a spoken conversation, so the written-translation direction
-  // and the per-round sentence count don't apply.
-  const voiceOn = document.querySelector('input[name="format"]:checked').value === "voice";
-  document.getElementById("directionGroup").classList.toggle("opt-disabled", voiceOn || anyLocal);
-  document.getElementById("numSentencesGroup").classList.toggle("opt-disabled", voiceOn && !on);
+  // Conversation modes are a back-and-forth, so the translation direction and
+  // the per-round sentence count don't apply.
+  const fmt = document.querySelector('input[name="format"]:checked').value;
+  const convo = fmt === "voice" || fmt === "chat";
+  document.getElementById("directionGroup").classList.toggle("opt-disabled", convo || anyLocal);
+  document.getElementById("numSentencesGroup").classList.toggle("opt-disabled", convo && !(fmt === "voice" && on));
 }
 document.getElementById("drillMode").addEventListener("change", syncDrillModeUI);
 document.getElementById("drillPerMustVerb").addEventListener("change", syncDrillModeUI);
