@@ -16,8 +16,26 @@
     "nosotros (we)": 3,
     "ellos/ellas/ustedes (they/you all)": 4,
   };
-  const TENSE_MAP = { "present tense": "present", "preterite tense": "preterite" };
-  const TENSE_LABEL = { present: "present", preterite: "preterite" };
+  const TENSE_MAP = {
+    "present tense": "present",
+    "preterite tense": "preterite",
+    "imperfect tense": "imperfect",
+  };
+  const TENSE_LABEL = { present: "present", preterite: "preterite", imperfect: "imperfect" };
+
+  // English for a verb in a given tense. Some verbs spell their present and past
+  // the same ("read", "put"), so the preterite gets a "(past)" hint; the
+  // imperfect is glossed "used to ..." and can never collide.
+  function verbEnglish(inf, tense, personIdx) {
+    const w = Conjugator.englishForm(inf, tense, personIdx);
+    if (tense === "imperfect") return w; // "used to ..." is already unambiguous
+    const other = tense === "present" ? "preterite" : "present";
+    const otherW = Conjugator.englishForm(inf, other, personIdx);
+    if (w && otherW && w.toLowerCase() === otherW.toLowerCase()) {
+      return w + (tense === "present" ? " (present)" : " (past)");
+    }
+    return w;
+  }
   const SUBJECT_PRONOUNS = new Set([
     "yo", "tú", "tu", "él", "el", "ella", "usted", "nosotros", "nosotras",
     "ellos", "ellas", "ustedes",
@@ -147,14 +165,7 @@
     const correct = forms ? forms[person] : null;
     const pdef = PERSONS[person];
     const subject = pdef.eng[Math.floor(Math.random() * pdef.eng.length)];
-    let verbEng = Conjugator.englishForm(v.inf, tense, person);
-    // Some English verbs are identical in present & past (put, read, ...),
-    // so add a tense hint to keep the prompt unambiguous.
-    const otherTense = tense === "present" ? "preterite" : "present";
-    const otherEng = Conjugator.englishForm(v.inf, otherTense, person);
-    if (verbEng.toLowerCase() === (otherEng || "").toLowerCase()) {
-      verbEng += tense === "present" ? " (present)" : " (past)";
-    }
+    const verbEng = verbEnglish(v.inf, tense, person);
     return {
       kind: "conj",
       inf: v.inf, display: v.display, tense, person,
@@ -249,12 +260,7 @@
     const verbForm = forms ? forms[person] : null;
     const correct = `${obj.dop} ${verbForm}`;
     const subject = PERSONS[person].eng[Math.floor(Math.random() * PERSONS[person].eng.length)];
-    let verbEng = Conjugator.englishForm(v.inf, tense, person);
-    const otherTense = tense === "present" ? "preterite" : "present";
-    const otherEng = Conjugator.englishForm(v.inf, otherTense, person);
-    if (verbEng.toLowerCase() === (otherEng || "").toLowerCase()) {
-      verbEng += tense === "present" ? " (present)" : " (past)";
-    }
+    const verbEng = verbEnglish(v.inf, tense, person);
     return {
       kind: "dop",
       inf: v.inf, display: v.display, tense, person, obj,
@@ -294,6 +300,171 @@
     currentKind = "dop";
 
     $("drillStatus").textContent = `${verbs.length} transitive verb(s) · ${tenses.map(t => TENSE_LABEL[t]).join(" & ")} · direct object pronouns`;
+    renderItems(items);
+  }
+
+  // ======================= DEMONSTRATIVE MODE =======================
+  // Spanish makes a three-way distance distinction English collapses into two:
+  // este (near me) / ese (near you) / aquel (over there). All agree in gender
+  // and number with the noun. Modern RAE drops the old accents on the pronoun
+  // forms (éste -> este), so none are used here.
+  const demCounts = {};
+  const DEMONSTRATIVES = [
+    { key: "este",  en: { sing: "this", plural: "these" }, tail: "",
+      forms: { m: { sing: "este",  plural: "estos"    }, f: { sing: "esta",    plural: "estas"    } } },
+    { key: "ese",   en: { sing: "that", plural: "those" }, tail: "",
+      forms: { m: { sing: "ese",   plural: "esos"     }, f: { sing: "esa",     plural: "esas"     } } },
+    { key: "aquel", en: { sing: "that", plural: "those" }, tail: " (over there)",
+      forms: { m: { sing: "aquel", plural: "aquellos" }, f: { sing: "aquella", plural: "aquellas" } } },
+  ];
+  const demForm = (dem, gender, number) => dem.forms[gender][number];
+
+  // Which (demonstrative family, number) pairs are unlocked, based on the
+  // checked terms in a "PRONOUNS - Demonstrative" set (This/That/These/Those +
+  // the "(over there)" variants). Falls back to everything enabled if no such
+  // set is checked, so this stays backward-compatible with older saved data.
+  function demAvailability() {
+    const enabled = new Set();
+    let sawSet = false;
+    state.sets.filter(s => s.checked && /demonstrative/i.test(s.name)).forEach(s => {
+      s.terms.filter(t => t.checked !== false).forEach(t => {
+        const tokens = (t.es || "").toLowerCase().split(/[\/\s]+/).map(w => w.trim()).filter(Boolean);
+        DEMONSTRATIVES.forEach(dem => {
+          ["sing", "plural"].forEach(num => {
+            if (tokens.includes(dem.forms.m[num]) || tokens.includes(dem.forms.f[num])) {
+              enabled.add(`${dem.key}|${num}`);
+              sawSet = true;
+            }
+          });
+        });
+      });
+    });
+    return sawSet ? enabled : null; // null = no filter, allow everything
+  }
+
+  function demVerbs() {
+    const out = [], seen = new Set();
+    state.sets.filter(s => s.checked && s.name.startsWith("VERBS")).forEach(s => {
+      s.terms.filter(t => t.checked !== false).forEach(t => {
+        const inf = (t.es || "").split("/")[0].trim().toLowerCase();
+        if (!/^[a-záéíóúñü]+$/i.test(inf) || seen.has(inf) || inf.endsWith("se")) return;
+        if (!Conjugator.isDrillable(inf) || !Conjugator.canTakeObject(inf)) return;
+        seen.add(inf);
+        out.push(inf);
+      });
+    });
+    return out;
+  }
+
+  function demVerbEnglish(inf, tense, third) {
+    return verbEnglish(inf, tense, third ? 2 : 0);
+  }
+
+  function generateDemRound() {
+    const { all: nouns, people } = gustarNouns();
+    const verbs = demVerbs();
+    const { tenses, unsupported } = selectedTenses();
+    const personIdx = selectedPersons();
+    const subjects = PP_SUBJECTS.filter(s => personIdx.includes(s.idx));
+    const peopleSet = new Set(people);
+
+    const avail = demAvailability();
+    const isOn = (demKey, num) => !avail || avail.has(`${demKey}|${num}`);
+    const demsToUse = DEMONSTRATIVES.filter(dem => isOn(dem.key, "sing") || isOn(dem.key, "plural"));
+
+    const notes = [];
+    if (unsupported.length) notes.push("Tenses not supported by local mode (use AI mode): " + unsupported.join(", ") + ".");
+    if (!verbs.length) notes.push("Check a VERBS set with transitive verbs to also get full-sentence items (\"I see that cat\").");
+    if (avail && !demsToUse.length) notes.push("No demonstratives checked in your \"PRONOUNS - Demonstrative\" set.");
+    $("drillUnavailable").innerHTML = notes.join("<br>");
+
+    if (!nouns.length || !demsToUse.length) {
+      $("drillStatus").textContent = !nouns.length
+        ? "Check at least one NOUNS set to drill demonstratives."
+        : "Check at least one term in your \"PRONOUNS - Demonstrative\" set.";
+      $("drillItems").innerHTML = "";
+      currentItems = [];
+      return;
+    }
+
+    const combos = [];
+    demsToUse.forEach(dem => {
+      // T1 — bare demonstrative + noun: "that cat" -> "ese gato"
+      nouns.forEach(n => { if (isOn(dem.key, n.number)) combos.push({ kind: "bare", dem, n }); });
+
+      // T2 — inside a sentence: "I see that cat" -> "veo ese gato"
+      tenses.forEach(tense => verbs.forEach(inf => {
+        const forms = Conjugator.conjugate(inf, tense);
+        if (!forms) return;
+        subjects.forEach(subj => {
+          nouns.forEach(n => { if (isOn(dem.key, n.number)) combos.push({ kind: "sentence", dem, n, inf, tense, subj, conj: forms[subj.idx] }); });
+          // T3 — standalone pronoun: "I want that one (feminine)" -> "quiero esa"
+          ["m", "f"].forEach(g => ["sing", "plural"].forEach(num => {
+            if (isOn(dem.key, num)) combos.push({ kind: "pronoun", dem, gender: g, number: num, inf, tense, subj, conj: forms[subj.idx] });
+          }));
+        });
+      }));
+    });
+
+    const key = c =>
+      c.kind === "bare" ? `b|${c.dem.key}|${c.n.variants[0].word}`
+      : c.kind === "sentence" ? `s|${c.dem.key}|${c.n.variants[0].word}|${c.inf}|${c.subj.idx}|${c.tense}`
+      : `p|${c.dem.key}|${c.gender}|${c.number}|${c.inf}|${c.subj.idx}|${c.tense}`;
+
+    const ranked = combos
+      .map(c => ({ c, n: demCounts[key(c)] || 0, r: Math.random() }))
+      .sort((a, b) => a.n - b.n || a.r - b.r);
+    const k = itemsPerRound();
+    const chosen = [];
+    for (let i = 0; i < k; i++) chosen.push(ranked[i % ranked.length].c);
+
+    let items = chosen.map(c => {
+      let prompt, accept;
+
+      if (c.kind === "pronoun") {
+        const dw = c.dem.en[c.number] + (c.number === "sing" ? " one" : "");
+        const gLabel = c.gender === "m" ? "masculine" : "feminine";
+        const subjEn = c.subj.en[Math.floor(Math.random() * c.subj.en.length)];
+        prompt = `${subjEn} ${demVerbEnglish(c.inf, c.tense, c.subj.idx === 2)} ${dw} (${gLabel})${c.dem.tail}`;
+        accept = [`${c.conj} ${demForm(c.dem, c.gender, c.number)}`];
+      } else {
+        const num = c.n.number;
+        // Some terms are stored as "House" rather than "The house", so lowercase
+        // a leading capital when the noun sits mid-phrase (but leave "TV"/"ATM").
+        const w = c.n.enNoun;
+        const nounEn = /^[A-Z][a-z]/.test(w) ? w[0].toLowerCase() + w.slice(1) : w;
+        const enPhrase = `${c.dem.en[num]} ${nounEn}${c.dem.tail}`;
+        const isPerson = peopleSet.has(c.n);
+        if (c.kind === "bare") {
+          prompt = enPhrase.charAt(0).toUpperCase() + enPhrase.slice(1);
+          accept = c.n.variants.map(v => `${demForm(c.dem, v.gender, v.number)} ${v.word}`);
+        } else {
+          const subjEn = c.subj.en[Math.floor(Math.random() * c.subj.en.length)];
+          prompt = `${subjEn} ${demVerbEnglish(c.inf, c.tense, c.subj.idx === 2)} ${enPhrase}`;
+          // People take the personal "a" as a direct object ("veo a ese hombre").
+          accept = c.n.variants.map(v =>
+            `${c.conj} ${isPerson ? "a " : ""}${demForm(c.dem, v.gender, v.number)} ${v.word}`);
+        }
+      }
+
+      return {
+        kind: "dem",
+        prompt,
+        correct: accept[0],
+        accept,
+        demKey: c.dem.key,
+        tense: c.tense || null,
+        key: key(c),
+      };
+    });
+    if ($("drillShuffle").checked) shuffle(items);
+
+    items.forEach(it => (demCounts[it.key] = (demCounts[it.key] || 0) + 1));
+    currentItems = items;
+    currentKind = "dem";
+
+    $("drillStatus").textContent =
+      `${nouns.length} noun(s) · ${verbs.length} verb(s) · ${demsToUse.map(d => d.key).join(" / ")} · gender + number agreement`;
     renderItems(items);
   }
 
@@ -450,7 +621,9 @@
         });
       });
 
-      const beEn = c.tense === "present" ? (isPl ? "are" : "is") : (isPl ? "were" : "was");
+      const beEn = c.tense === "present" ? (isPl ? "are" : "is")
+        : c.tense === "imperfect" ? "used to be"
+        : (isPl ? "were" : "was");
       const prompt = `${possEn} ${c.n.enNoun} ${beEn} ${c.a.en.toLowerCase()}`;
 
       return {
@@ -565,9 +738,7 @@
     let items = chosen.map(c => {
       const pick = Math.floor(Math.random() * 2);
       const subjEn = c.subj.en[pick % c.subj.en.length];
-      const verbEn = c.tense === "present"
-        ? Conjugator.englishForm(c.v.inf, "present", c.subj.idx === 2 ? 2 : 0)
-        : Conjugator.englishForm(c.v.inf, "preterite", 0);
+      const verbEn = verbEnglish(c.v.inf, c.tense, c.subj.idx === 2 ? 2 : 0);
       const prep = c.v.prep ? " " + c.v.prep : "";
 
       let prompt, accept;
@@ -651,15 +822,7 @@
   }
 
   function dblVerbEnglish(inf, tense, third) {
-    let w = tense === "present"
-      ? Conjugator.englishForm(inf, "present", third ? 2 : 0)
-      : Conjugator.englishForm(inf, "preterite", 0);
-    // "read" is spelled the same in past — disambiguate.
-    const other = tense === "present"
-      ? Conjugator.englishForm(inf, "preterite", 0)
-      : Conjugator.englishForm(inf, "present", third ? 2 : 0);
-    if (tense === "preterite" && w.toLowerCase() === (other || "").toLowerCase()) w += " (past)";
-    return w;
+    return verbEnglish(inf, tense, third ? 2 : 0);
   }
 
   function generateDblRound() {
@@ -774,12 +937,13 @@
   // that take the infinitive as a plain object ("decidí comprarlo", not *"lo decidí comprar").
   const ppCounts = {};
   const PP_AUX = [
-    { inf: "querer",    link: "",    en: { pres: ["want to", "wants to"], past: "wanted to" } },
-    { inf: "poder",     link: "",    en: { pres: ["can", "can"],          past: "could" } },
-    { inf: "tener",     link: "que", en: { pres: ["have to", "has to"],   past: "had to" } },
+    { inf: "querer",    link: "",    en: { pres: ["want to", "wants to"], past: "wanted to",  imperf: "used to want to" } },
+    // "could" is also the preterite of poder, so the imperfect needs a distinct gloss.
+    { inf: "poder",     link: "",    en: { pres: ["can", "can"],          past: "could",      imperf: "used to be able to" } },
+    { inf: "tener",     link: "que", en: { pres: ["have to", "has to"],   past: "had to",     imperf: "used to have to" } },
     { inf: "ir",        link: "a",   presentOnly: true, be: true },
-    { inf: "necesitar", link: "",    en: { pres: ["need to", "needs to"], past: "needed to" } },
-    { inf: "intentar",  link: "",    en: { pres: ["try to", "tries to"],  past: "tried to" } },
+    { inf: "necesitar", link: "",    en: { pres: ["need to", "needs to"], past: "needed to", imperf: "used to need to" } },
+    { inf: "intentar",  link: "",    en: { pres: ["try to", "tries to"],  past: "tried to",  imperf: "used to try to" } },
   ];
   const PP_BE = ["am", "are", "is", "are", "are"];
   const PP_SUBJECTS = [
@@ -793,6 +957,7 @@
   function ppAuxEnglish(aux, personIdx, tense) {
     if (aux.be) return PP_BE[personIdx] + " going to";
     if (tense === "present") return aux.en.pres[personIdx === 2 ? 1 : 0];
+    if (tense === "imperfect") return aux.en.imperf;
     return aux.en.past;
   }
 
@@ -908,10 +1073,10 @@
   const gustarCounts = {};
   const gustarLikerCounts = {}; // weights liker CATEGORIES (e.g. "He/She" vs each noun) evenly
   const GUSTAR_VERBS = {
-    gustar:    { pres: ["gusta", "gustan"],       pret: ["gustó", "gustaron"],       style: "like",     enPresent: "like", enPast: "liked", neg: true },
-    encantar:  { pres: ["encanta", "encantan"],   pret: ["encantó", "encantaron"],   style: "like",     enPresent: "love", enPast: "loved", neg: false },
-    interesar: { pres: ["interesa", "interesan"], pret: ["interesó", "interesaron"], style: "interest", neg: true },
-    doler:     { pres: ["duele", "duelen"],       pret: ["dolió", "dolieron"],       style: "hurt",     neg: true },
+    gustar:    { pres: ["gusta", "gustan"],       pret: ["gustó", "gustaron"],       imperf: ["gustaba", "gustaban"],       style: "like",     enPresent: "like", enPast: "liked", neg: true },
+    encantar:  { pres: ["encanta", "encantan"],   pret: ["encantó", "encantaron"],   imperf: ["encantaba", "encantaban"],   style: "like",     enPresent: "love", enPast: "loved", neg: false },
+    interesar: { pres: ["interesa", "interesan"], pret: ["interesó", "interesaron"], imperf: ["interesaba", "interesaban"], style: "interest", neg: true },
+    doler:     { pres: ["duele", "duelen"],       pret: ["dolió", "dolieron"],       imperf: ["dolía", "dolían"],           style: "hurt",     neg: true },
   };
 
   const GUSTAR_PRONOUNS = [
@@ -984,7 +1149,7 @@
   }
 
   function gustarSpanish(lv, tv, vf, tense, neg) {
-    const forms = tense === "present" ? vf.pres : vf.pret;
+    const forms = tense === "present" ? vf.pres : tense === "imperfect" ? vf.imperf : vf.pret;
     const form = tv.number === "plural" ? forms[1] : forms[0];
     const head = lv.aPhrase ? lv.aPhrase + " " : "";
     return `${head}${neg ? "no " : ""}${lv.dop} ${form} ${tv.article} ${tv.word}`;
@@ -994,6 +1159,9 @@
     const subj = liker.enOptions[pick % liker.enOptions.length];
     const thingPhrase = `the ${thing.enNoun}`;
     if (v.style === "like") {
+      if (tense === "imperfect") {
+        return `${subj} used to ${neg ? "not " : ""}${v.enPresent} ${thingPhrase}`;
+      }
       if (tense === "present") {
         if (neg) return `${subj} ${liker.third ? "doesn't" : "don't"} ${v.enPresent} ${thingPhrase}`;
         return `${subj} ${liker.third ? v.enPresent + "s" : v.enPresent} ${thingPhrase}`;
@@ -1002,12 +1170,14 @@
       return `${subj} ${v.enPast} ${thingPhrase}`;
     }
     if (v.style === "interest") {
+      if (tense === "imperfect") return `${subj} used to ${neg ? "not " : ""}be interested in ${thingPhrase}`;
       return `${subj} ${liker.be[tense]}${neg ? " not" : ""} interested in ${thingPhrase}`;
     }
     // doler — English uses a possessive where Spanish uses the definite article
     const poss = liker.possOptions[pick % liker.possOptions.length];
     const part = thing.enNoun;
     const plural = thing.number === "plural";
+    if (tense === "imperfect") return `${poss} ${part} used to ${neg ? "not " : ""}hurt`;
     if (tense === "present") {
       if (neg) return `${poss} ${part} ${plural ? "don't" : "doesn't"} hurt`;
       return `${poss} ${part} ${plural ? "hurt" : "hurts"}`;
@@ -1228,7 +1398,9 @@
     const aux = tense === "present" ? (subj.third ? "does" : "do") : "did";
     const parts = [];
     if (qw) parts.push(qw.en);
-    parts.push(aux, subj.en, verb.base);
+    // Imperfect questions read "Where did you USE TO work?" — "use to" (no d)
+    // is the correct form after do-support.
+    parts.push(aux, subj.en, tense === "imperfect" ? "use to " + verb.base : verb.base);
     if (objEn) parts.push(objEn);
     // "adónde" reads as "Where do you walk TO?" — but "go to" is redundant.
     if (qw && qw.enTail && verb.inf !== "ir") parts.push(qw.enTail);
@@ -1312,7 +1484,9 @@
         // T6 — quién as the subject (always 3rd singular, no do-support):
         // "Who eats?" / "Who ate?"
         quiénQ.forEach(q => {
-          const enVerb = tense === "present" ? v.third : v.past;
+          const enVerb = tense === "present" ? v.third
+            : tense === "imperfect" ? "used to " + v.base
+            : v.past;
           combos.push({
             key: `t6|${q.es}|${v.inf}|${tense}`,
             prompt: `Who ${enVerb}?`,
@@ -1557,6 +1731,10 @@
     if (item.kind === "pp") {
       return `${TENSE_LABEL[item.tense]} <i>${escapeHtml(item.auxInf)}</i> — also valid: <b><i>${escapeHtml(item.alt)}</i></b>`;
     }
+    if (item.kind === "dem") {
+      const dist = { este: "near me", ese: "near you", aquel: "far from both — over there" }[item.demKey];
+      return `<b>${escapeHtml(item.demKey)}</b> family (${dist})` + (item.tense ? ` · ${TENSE_LABEL[item.tense]}` : "");
+    }
     if (item.kind === "poss") {
       const why = item.copula === "estar" ? "<b>estar</b> — a temporary state/condition"
         : item.copula === "ser" ? "<b>ser</b> — an inherent characteristic"
@@ -1643,6 +1821,7 @@
   // ======================= MODE SELECTION / VISIBILITY =======================
   function activeKind() {
     if ($("vocabDrillMode").checked) return "vocab";
+    if ($("demDrillMode").checked) return "dem";
     if ($("possDrillMode").checked) return "poss";
     if ($("iopDrillMode").checked) return "iop";
     if ($("dblDrillMode").checked) return "dbl";
@@ -1656,6 +1835,7 @@
 
   function generateRound() {
     if (currentKind === "vocab") generateVocabRound();
+    else if (currentKind === "dem") generateDemRound();
     else if (currentKind === "poss") generatePossRound();
     else if (currentKind === "iop") generateIopRound();
     else if (currentKind === "dbl") generateDblRound();
@@ -1679,6 +1859,7 @@
     if (kind) {
       const titles = {
         vocab: "Local Vocabulary Drill",
+        dem: "Local Demonstrative Drill",
         poss: "Local Possessive Drill",
         iop: "Local Indirect Object Pronoun Drill",
         dbl: "Local Indirect + Direct Object Pronoun Drill",
@@ -1705,12 +1886,15 @@
   $("dblDrillMode").addEventListener("change", updateVisibility);
   $("iopDrillMode").addEventListener("change", updateVisibility);
   $("possDrillMode").addEventListener("change", updateVisibility);
+  $("demDrillMode").addEventListener("change", updateVisibility);
   $("drillNextBtn").addEventListener("click", generateRound);
   $("drillResetBtn").addEventListener("click", () => {
     if (currentKind === "vocab") {
       state.sets.forEach(s => s.terms.forEach(t => (t.tally = 0)));
       save();
       render();
+    } else if (currentKind === "dem") {
+      for (const k in demCounts) delete demCounts[k];
     } else if (currentKind === "poss") {
       for (const k in possCounts) delete possCounts[k];
     } else if (currentKind === "iop") {

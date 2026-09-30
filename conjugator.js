@@ -37,6 +37,16 @@
     return [stem + "í", stem + "iste", stem + "ió", stem + "imos", stem + "ieron"];
   }
 
+  // The imperfect is the most regular tense in Spanish: no stem changes, no
+  // spelling changes, and only three irregular verbs in the whole language
+  // (ser, ir, ver) — all handled by explicit overrides in the table below.
+  function regularImperfect(inf) {
+    const stem = inf.slice(0, -2);
+    const end = inf.slice(-2);
+    if (end === "ar") return ["aba", "abas", "aba", "ábamos", "aban"].map(e => stem + e);
+    return ["ía", "ías", "ía", "íamos", "ían"].map(e => stem + e); // -er / -ir
+  }
+
   // English helpers (single-word regular verbs only) --------------------------
   function engThird(b) {
     if (/(s|x|z|ch|sh)$/.test(b)) return b + "es";
@@ -55,23 +65,26 @@
   const V = {
     // ---- irregular verbs ----
     ser: { tag: "(permanent)", en: { presentByPerson: ["am", "are", "is", "are", "are"], pastByPerson: ["was", "were", "was", "were", "were"] },
-      present: ["soy", "eres", "es", "somos", "son"], preterite: ["fui", "fuiste", "fue", "fuimos", "fueron"] },
+      present: ["soy", "eres", "es", "somos", "son"], preterite: ["fui", "fuiste", "fue", "fuimos", "fueron"],
+      imperfect: ["era", "eras", "era", "éramos", "eran"] },
     estar: { tag: "(temporary)", en: { presentByPerson: ["am", "are", "is", "are", "are"], pastByPerson: ["was", "were", "was", "were", "were"] },
       present: ["estoy", "estás", "está", "estamos", "están"], preterite: ["estuve", "estuviste", "estuvo", "estuvimos", "estuvieron"] },
     tener: { en: { base: "have", third: "has", past: "had" },
       present: ["tengo", "tienes", "tiene", "tenemos", "tienen"], preterite: ["tuve", "tuviste", "tuvo", "tuvimos", "tuvieron"] },
     ir: { en: { base: "go", third: "goes", past: "went" },
-      present: ["voy", "vas", "va", "vamos", "van"], preterite: ["fui", "fuiste", "fue", "fuimos", "fueron"] },
+      present: ["voy", "vas", "va", "vamos", "van"], preterite: ["fui", "fuiste", "fue", "fuimos", "fueron"],
+      imperfect: ["iba", "ibas", "iba", "íbamos", "iban"] },
     hacer: { en: { base: "make", third: "makes", past: "made" },
       present: ["hago", "haces", "hace", "hacemos", "hacen"], preterite: ["hice", "hiciste", "hizo", "hicimos", "hicieron"] },
-    poder: { en: { base: "can", third: "can", past: "could" },
+    poder: { en: { base: "can", third: "can", past: "could" }, enImperf: "used to be able to",
       present: ["puedo", "puedes", "puede", "podemos", "pueden"], preterite: ["pude", "pudiste", "pudo", "pudimos", "pudieron"] },
     querer: { en: { base: "want", third: "wants", past: "wanted" },
       present: ["quiero", "quieres", "quiere", "queremos", "quieren"], preterite: ["quise", "quisiste", "quiso", "quisimos", "quisieron"] },
     saber: { tag: "(a fact)", en: { base: "know", third: "knows", past: "knew" },
       present: ["sé", "sabes", "sabe", "sabemos", "saben"], preterite: ["supe", "supiste", "supo", "supimos", "supieron"] },
     ver: { en: { base: "see", third: "sees", past: "saw" },
-      present: ["veo", "ves", "ve", "vemos", "ven"], preterite: ["vi", "viste", "vio", "vimos", "vieron"] },
+      present: ["veo", "ves", "ve", "vemos", "ven"], preterite: ["vi", "viste", "vio", "vimos", "vieron"],
+      imperfect: ["veía", "veías", "veía", "veíamos", "veían"] },
     decir: { en: { base: "say", third: "says", past: "said" },
       present: ["digo", "dices", "dice", "decimos", "dicen"], preterite: ["dije", "dijiste", "dijo", "dijimos", "dijeron"] },
     venir: { en: { base: "come", third: "comes", past: "came" },
@@ -216,7 +229,7 @@
     inf = inf.toLowerCase().trim();
     const entry = V[inf];
     if (!entry) return null;
-    if (tense !== "present" && tense !== "preterite") return null;
+    if (!["present", "preterite", "imperfect"].includes(tense)) return null;
 
     const reflexive = isReflexive(inf);
     // For reflexive verbs, strip the "se" so the regular generator sees a normal
@@ -225,7 +238,9 @@
 
     let forms = entry[tense];
     if (!forms) {
-      forms = tense === "present" ? regularPresent(genInf) : regularPreterite(genInf);
+      forms = tense === "present" ? regularPresent(genInf)
+        : tense === "imperfect" ? regularImperfect(genInf)
+        : regularPreterite(genInf);
     }
     if (reflexive) forms = forms.map((f, i) => REFLEX[i] + " " + f);
     return forms;
@@ -243,7 +258,14 @@
       if (entry.enIrr) en = Object.assign(en, entry.enIrr);
     }
     let form;
-    if (en.presentByPerson) {
+    // The imperfect is glossed "used to ..." throughout — it's the standard
+    // teaching gloss and, unlike "was/ate", it can never be confused with the
+    // preterite in an English prompt.
+    if (tense === "imperfect") {
+      // `enImperf` covers verbs where "used to " + base is ungrammatical
+      // ("used to can" -> "used to be able to").
+      form = entry.enImperf || "used to " + (en.presentByPerson ? "be" : en.base);
+    } else if (en.presentByPerson) {
       form = tense === "present" ? en.presentByPerson[person] : en.pastByPerson[person];
     } else if (tense === "present") {
       form = person === 2 ? en.third : en.base;
@@ -296,6 +318,7 @@
       ending: "-" + ending,
       present: entry && entry.present ? "irregular" : "regular",
       preterite: entry && entry.preterite ? "irregular" : (spellingChange ? "spelling-change" : "regular"),
+      imperfect: entry && entry.imperfect ? "irregular" : "regular",
     };
   }
 

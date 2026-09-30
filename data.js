@@ -546,6 +546,34 @@ const DEFAULT_SETS = [
       { en: "The accent", es: "El acento" },
     ],
   },
+  {
+    name: "NOUNS - common (pt. 22)",
+    terms: [
+      { en: "The dog", es: "El perro / La perra" },
+      { en: "The cat", es: "El gato / La gata" },
+      { en: "The pet", es: "La mascota" },
+      { en: "The pilot", es: "El piloto / La piloto" },
+      { en: "The passenger", es: "El pasajero / La pasajera" },
+      { en: "The teenager", es: "El adolescente / La adolescente" },
+      { en: "The cashier", es: "El cajero / La cajera" },
+      { en: "The airplane", es: "El avión" },
+      { en: "The boat", es: "El barco" },
+      { en: "The taxi", es: "El taxi" },
+      { en: "The wait", es: "La espera" },
+      { en: "The line", es: "La fila" },
+      { en: "The letter", es: "La letra" },
+      { en: "The alphabet", es: "El alfabeto" },
+      { en: "The sentence", es: "La oración" },
+      { en: "The symbol", es: "El símbolo" },
+      { en: "The mystery", es: "El misterio" },
+      { en: "The wave", es: "La ola" },
+      { en: "The view", es: "La vista" },
+      { en: "The smell", es: "El olor" },
+      { en: "The scent", es: "El aroma" },
+      { en: "The young guy", es: "El muchacho" },
+      { en: "The young gal", es: "La muchacha" },
+    ],
+  },
 
   // ---------------- VERBS ----------------
   {
@@ -562,15 +590,15 @@ const DEFAULT_SETS = [
   {
     name: "VERBS - irregular",
     terms: [
-      { en: "To be (permanent)", es: "Ser", note: "Present: soy, eres, es, somos, son | Preterite: fui, fuiste, fue, fuimos, fueron" },
+      { en: "To be (permanent)", es: "Ser", note: "Present: soy, eres, es, somos, son | Preterite: fui, fuiste, fue, fuimos, fueron | Imperfect: era, eras, era, éramos, eran" },
       { en: "To be (temporary)", es: "Estar", note: "Present: estoy, estás, está, estamos, están | Preterite: estuve, estuviste, estuvo, estuvimos, estuvieron" },
       { en: "To have", es: "Tener", note: "Present: tengo, tienes, tiene, tenemos, tienen | Preterite: tuve, tuviste, tuvo, tuvimos, tuvieron" },
-      { en: "To go", es: "Ir", note: "Present: voy, vas, va, vamos, van | Preterite: fui, fuiste, fue, fuimos, fueron" },
+      { en: "To go", es: "Ir", note: "Present: voy, vas, va, vamos, van | Preterite: fui, fuiste, fue, fuimos, fueron | Imperfect: iba, ibas, iba, íbamos, iban" },
       { en: "To do / make", es: "Hacer", note: "Present: hago/haces/hace/hacemos/hacen | Preterite: hice/hiciste/hizo/hicimos/hicieron" },
       { en: "Can / to be able to", es: "Poder", note: "Present: puedo/puedes/puede/podemos/pueden | Preterite: pude/pudiste/pudo/pudimos/pudieron" },
       { en: "To want", es: "Querer", note: "Present: quiero/quieres/quiere/queremos/quieren | Preterite: quise/quisiste/quiso/quisimos/quisieron" },
       { en: "To know (a fact)", es: "Saber", note: "Present: sé, sabes, sabe, sabemos, saben | Preterit: supe, supiste, supo, supimos, supieron" },
-      { en: "To see / watch", es: "Ver", note: "Present: veo/ves/ve/vemos/ven | Preterite: vi/viste/vio/vimos/vieron" },
+      { en: "To see / watch", es: "Ver", note: "Present: veo/ves/ve/vemos/ven | Preterite: vi/viste/vio/vimos/vieron | Imperfect: veía, veías, veía, veíamos, veían" },
       { en: "To say / tell", es: "Decir", note: "Present: digo/dices/dice/decimos/dicen | Preterite: dije/dijiste/dijo/dijimos/dijeron" },
       { en: "To come", es: "Venir", note: "Present: vengo/vienes/viene/venimos/vienen | Preterite: vine/viniste/vino/vinimos/vinieron" },
       { en: "To put / place", es: "Poner", note: "Present: pongo/pones/pone/ponemos/ponen | Preterite: puse, pusiste, puso, pusimos, pusieron" },
@@ -1173,6 +1201,7 @@ const DEFAULT_SETS = [
       { en: "What does it mean?", es: "¿Qué significa?" },
       { en: "Where are we going?", es: "¿Adónde vamos?" },
       { en: "Who is he?", es: "¿Quién es él?" },
+      { en: "Who is she?", es: "¿Quién es ella?" },
       { en: "Why not?", es: "¿Por qué no?" },
       { en: "When do we leave?", es: "¿Cuándo salimos?" },
       { en: "Which one do you want?", es: "¿Cuál quieres?" },
@@ -1334,8 +1363,18 @@ const DEFAULT_SETS = [
     "terms": [
       { "en": "This", "es": "Este / Esta" },
       { "en": "That", "es": "Ese / Esa" },
+      { "en": "That (over there)", "es": "Aquel / Aquella" },
       { "en": "These", "es": "Estos / Estas" },
-      { "en": "Those", "es": "Esos / Esas" }
+      { "en": "Those", "es": "Esos / Esas" },
+      { "en": "Those (over there)", "es": "Aquellos / Aquellas" }
+    ]
+  },
+  {
+    "name": "PRONOUNS - Demonstrative (neuter)",
+    "terms": [
+      { "en": "This (neuter)", "es": "Esto" },
+      { "en": "That (neuter)", "es": "Eso" },
+      { "en": "That (over there, neuter)", "es": "Aquello" }
     ]
   },
   {

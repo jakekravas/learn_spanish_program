@@ -778,7 +778,8 @@ function syncDrillModeUI() {
   const dblOn = document.getElementById("dblDrillMode").checked;
   const iopOn = document.getElementById("iopDrillMode").checked;
   const possOn = document.getElementById("possDrillMode").checked;
-  const anyLocal = on || vocabOn || dopOn || dqOn || gustarOn || ppOn || dblOn || iopOn || possOn;
+  const demOn = document.getElementById("demDrillMode").checked;
+  const anyLocal = on || vocabOn || dopOn || dqOn || gustarOn || ppOn || dblOn || iopOn || possOn || demOn;
   document.getElementById("grammarGroup").classList.toggle("opt-disabled", anyLocal);
   document.getElementById("focusGroup").classList.toggle("opt-disabled", anyLocal);
   document.getElementById("drillPerVerbRow").classList.toggle("opt-disabled", !on);
@@ -801,6 +802,7 @@ document.getElementById("ppDrillMode").addEventListener("change", syncDrillModeU
 document.getElementById("dblDrillMode").addEventListener("change", syncDrillModeUI);
 document.getElementById("iopDrillMode").addEventListener("change", syncDrillModeUI);
 document.getElementById("possDrillMode").addEventListener("change", syncDrillModeUI);
+document.getElementById("demDrillMode").addEventListener("change", syncDrillModeUI);
 document.querySelectorAll('input[name="format"]').forEach(r =>
   r.addEventListener("change", syncDrillModeUI));
 syncDrillModeUI();
